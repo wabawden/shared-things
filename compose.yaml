@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: shared-things-postgres
+    environment:
+      POSTGRES_DB: shared_things
+      POSTGRES_USER: shared_things
+      POSTGRES_PASSWORD: development-only-password
+    ports:
+      - "5432:5432"
+    volumes:
+      - shared-things-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U shared_things -d shared_things
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  shared-things-postgres-data:

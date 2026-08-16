@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharedThings.Api", "src/SharedThings.Api/SharedThings.Api.csproj", "{B9367869-A650-4C32-925F-C72D34DDE48A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharedThings.Api.Tests", "tests/SharedThings.Api.Tests/SharedThings.Api.Tests.csproj", "{1D17A324-8182-411A-AE4F-9B7E489858AE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B9367869-A650-4C32-925F-C72D34DDE48A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9367869-A650-4C32-925F-C72D34DDE48A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9367869-A650-4C32-925F-C72D34DDE48A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9367869-A650-4C32-925F-C72D34DDE48A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D17A324-8182-411A-AE4F-9B7E489858AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D17A324-8182-411A-AE4F-9B7E489858AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D17A324-8182-411A-AE4F-9B7E489858AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D17A324-8182-411A-AE4F-9B7E489858AE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
