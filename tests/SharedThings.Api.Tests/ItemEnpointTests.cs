@@ -1,19 +1,17 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 using SharedThings.Api.Authentication;
 using SharedThings.Api.Data;
-using SharedThings.Api.Data.Entities;
 using Xunit;
 
 namespace SharedThings.Api.Tests;
 
 
-public sealed class ItemEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class ItemEndpointsTests : IClassFixture<SharedThingsApiFactory>
 {
     private readonly HttpClient _client;
 
-    public ItemEndpointsTests(WebApplicationFactory<Program> application)
+    public ItemEndpointsTests(SharedThingsApiFactory application)
     {
         _client = application.CreateClient();
     }

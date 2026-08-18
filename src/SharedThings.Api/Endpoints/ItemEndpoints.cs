@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using SharedThings.Api.Authorization;
 using SharedThings.Api.Contracts;
@@ -27,35 +28,67 @@ public static class ItemEndpoints
         Guid communityId,
         ClaimsPrincipal principal,
         IAuthorizationService authorizationService,
-        ICommunityStore store)
+        SharedThingsDbContext dbContext,
+        CancellationToken cancellationToken)
     {
-        var authorizationResult = await authorizationService.AuthorizeAsync(
-            principal,
-            communityId,
-            new CommunityMemberRequirement());
+        var authorizationResult =
+            await authorizationService.AuthorizeAsync(
+                principal,
+                communityId,
+                new CommunityMemberRequirement());
 
         if (!authorizationResult.Succeeded)
         {
             return Results.NotFound();
         }
 
-        return Results.Ok(store.GetCommunityItems(communityId));
+        var items = await dbContext.Items
+            .AsNoTracking()
+            .Where(item =>
+                item.Owner.Memberships.Any(
+                    membership =>
+                        membership.CommunityId == communityId))
+            .Select(item => new ItemResponse(
+                item.Id,
+                item.OwnerId,
+                item.Owner.DisplayName,
+                item.Name,
+                item.Description,
+                item.Condition))
+            .ToArrayAsync(cancellationToken);
+
+        return Results.Ok(items);
     }
     
     public static async Task<IResult> GetMyItems(
         ClaimsPrincipal principal,
-        IAuthorizationService authorizationService,
-        ICommunityStore store)
+        SharedThingsDbContext dbContext,
+        CancellationToken cancellationToken)
     {
-        var userId = Guid.Parse(principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        return Results.Ok(store.GetMyItems(userId));
+        var userId = Guid.Parse(
+            principal.FindFirstValue(
+                ClaimTypes.NameIdentifier)!);
+
+        var items = await dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.OwnerId == userId)
+            .Select(item => new ItemResponse(
+                item.Id,
+                item.OwnerId,
+                item.Owner.DisplayName,
+                item.Name,
+                item.Description,
+                item.Condition))
+            .ToArrayAsync(cancellationToken);
+
+        return Results.Ok(items);
     }
 
     private static async Task<IResult> CreateItem(
         CreateItemRequest request,
         ClaimsPrincipal principal,
-        IAuthorizationService authorizationService,
-        ICommunityStore store)
+        SharedThingsDbContext dbContext,
+        CancellationToken cancellationToken)
     {
         
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -83,14 +116,14 @@ public static class ItemEndpoints
                 });
         }
         
-        if (description?.Length > 255)
+        if (description?.Length > 1_000)
         {
             return Results.ValidationProblem(
                 new Dictionary<string, string[]>
                 {
                     ["description"] =
                     [
-                        "An item description cannot exceed 255 characters."
+                        "An item description cannot exceed 1,000 characters."
                     ]
                 });
         }
@@ -100,7 +133,7 @@ public static class ItemEndpoints
             return Results.ValidationProblem(
                 new Dictionary<string, string[]>
                 {
-                    ["name"] =
+                    ["condition"] =
                     [
                         "An item condition cannot exceed 100 characters."
                     ]
@@ -110,14 +143,36 @@ public static class ItemEndpoints
         var userId = Guid.Parse(
             principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        var item = store.CreateItem(
+        var ownerDisplayName = await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => user.DisplayName)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (ownerDisplayName is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var item = new Item(
+            Guid.NewGuid(),
             userId,
             name,
-            description,
-            condition);
+            description ?? string.Empty,
+            condition ?? string.Empty);
+
+        dbContext.Items.Add(item);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return Results.Created(
             $"/api/items/{item.Id}",
-            item);
+            new ItemResponse(
+                item.Id,
+                item.OwnerId,
+                ownerDisplayName,
+                item.Name,
+                item.Description,
+                item.Condition));
     }
 }

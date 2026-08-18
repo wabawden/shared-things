@@ -8,13 +8,19 @@ using SharedThings.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString =
-    builder.Configuration.GetConnectionString("SharedThings")
-    ?? throw new InvalidOperationException(
-        "Connection string 'SharedThings' was not found.");
+builder.Services.AddDbContext<SharedThingsDbContext>(
+    (serviceProvider, options) =>
+    {
+        var configuration =
+            serviceProvider.GetRequiredService<IConfiguration>();
 
-builder.Services.AddDbContext<SharedThingsDbContext>(options =>
-    options.UseNpgsql(connectionString));
+        var connectionString =
+            configuration.GetConnectionString("SharedThings")
+            ?? throw new InvalidOperationException(
+                "Connection string 'SharedThings' was not found.");
+
+        options.UseNpgsql(connectionString);
+    });
 
 builder.Services
     .AddIdentityCore<ApplicationUser>(options =>
