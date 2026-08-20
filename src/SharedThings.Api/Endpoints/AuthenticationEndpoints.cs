@@ -11,8 +11,13 @@ public static class AuthenticationEndpoints
     {
         var group = endpoints.MapGroup("/api/auth");
 
-        group.MapPost("/register", Register);
-        group.MapPost("/login", Login);
+        group.MapPost("/register", Register)
+            .AllowAnonymous()
+            .RequireRateLimiting("registration");
+
+        group.MapPost("/login", Login)
+            .AllowAnonymous()
+            .RequireRateLimiting("login");
 
         group.MapPost("/logout", Logout)
             .RequireAuthorization();

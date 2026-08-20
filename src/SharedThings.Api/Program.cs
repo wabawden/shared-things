@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
@@ -44,8 +45,17 @@ builder.Services
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
+builder.Services
+    .AddHealthChecks()
+    .AddDbContextCheck<SharedThingsDbContext>(
+        name: "postgres");
+
 const string combinedAuthenticationScheme =
     "DevelopmentOrIdentity";
+
+var developmentAuthenticationEnabled =
+    builder.Environment.IsDevelopment() ||
+    builder.Environment.IsEnvironment("Testing");
 
 builder.Services
     .AddAuthentication(options =>
@@ -65,10 +75,16 @@ builder.Services
         options =>
         {
             options.ForwardDefaultSelector = context =>
-                context.Request.Headers.ContainsKey(
-                    DevelopmentAuthenticationHandler.UserIdHeader)
+            {
+                var hasDevelopmentHeader =
+                    context.Request.Headers.ContainsKey(
+                        DevelopmentAuthenticationHandler.UserIdHeader);
+
+                return developmentAuthenticationEnabled &&
+                       hasDevelopmentHeader
                     ? DevelopmentAuthenticationHandler.SchemeName
                     : IdentityConstants.ApplicationScheme;
+            };
         })
     .AddScheme<
         DevelopmentAuthenticationOptions,
@@ -82,6 +98,13 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.Name = "shared-things-session";
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy =
+        builder.Environment.IsProduction()
+            ? CookieSecurePolicy.Always
+            : CookieSecurePolicy.SameAsRequest;
+
+    options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    options.SlidingExpiration = true;
 
     options.Events.OnRedirectToLogin = context =>
     {
@@ -108,6 +131,48 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 
+var authenticationPermitLimit =
+    builder.Environment.IsEnvironment("Testing")
+        ? 10_000
+        : 10;
+
+var registrationPermitLimit =
+    builder.Environment.IsEnvironment("Testing")
+        ? 10_000
+        : 5;
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode =
+        StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("login", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey:
+            context.Connection.RemoteIpAddress?.ToString()
+            ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authenticationPermitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("registration", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey:
+            context.Connection.RemoteIpAddress?.ToString()
+            ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = registrationPermitLimit,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -118,22 +183,18 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { name = "Shared Things API" }));
+app.MapHealthChecks("/health")
+    .AllowAnonymous();
 app.MapAuthenticationEndpoints();
 app.MapCommunityEndpoints();
 app.MapItemEndpoints();
 app.MapInvitationEndpoints();
 
 app.Run();
-
-namespace Microsoft.AspNetCore.Authorization.Policy
-{
-    public interface IAuthorizationMiddlewareResultHandler
-    {
-    }
-}
 
 public partial class Program;
