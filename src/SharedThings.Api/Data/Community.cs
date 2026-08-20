@@ -19,4 +19,6 @@ public sealed class Community
     public string Name { get; private set; } = string.Empty;
 
     public ICollection<Membership> Memberships { get; private set; } = [];
+    
+    public ICollection<CommunityInvitation> Invitations { get; private set; } = [];
 }

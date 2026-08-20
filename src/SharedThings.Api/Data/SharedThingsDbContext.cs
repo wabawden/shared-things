@@ -14,6 +14,8 @@ public sealed class SharedThingsDbContext(
 {
     
     public DbSet<Community> Communities => Set<Community>();
+    public DbSet<CommunityInvitation> CommunityInvitations =>
+        Set<CommunityInvitation>();
 
     public DbSet<Membership> Memberships => Set<Membership>();
 
@@ -78,6 +80,28 @@ public sealed class SharedThingsDbContext(
                 .WithMany(x => x.Memberships)
                 .HasForeignKey(x => x.CommunityId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        builder.Entity<CommunityInvitation>(invitation =>
+        {
+            invitation.HasKey(i => i.Id);
+
+            invitation.Property(i => i.TokenHash)
+                .HasMaxLength(64)
+                .IsRequired();
+
+            invitation.HasIndex(i => i.TokenHash)
+                .IsUnique();
+
+            invitation.HasOne(i => i.Community)
+                .WithMany(c => c.Invitations)
+                .HasForeignKey(i => i.CommunityId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            invitation.HasOne(i => i.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(i => i.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

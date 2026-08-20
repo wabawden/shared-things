@@ -106,6 +106,7 @@ builder.Services.AddScoped<
     CommunityMemberHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddProblemDetails();
+builder.Services.AddSingleton(TimeProvider.System);
 
 var app = builder.Build();
 
@@ -124,6 +125,7 @@ app.MapGet("/", () => Results.Ok(new { name = "Shared Things API" }));
 app.MapAuthenticationEndpoints();
 app.MapCommunityEndpoints();
 app.MapItemEndpoints();
+app.MapInvitationEndpoints();
 
 app.Run();
 

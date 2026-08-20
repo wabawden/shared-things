@@ -240,4 +240,227 @@ public sealed class CommunityEndpointsTests :
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
         Assert.Equal(created, retrieved);
     }
+    
+    [Fact]
+    public async Task CreateInvitation_ReturnsInvitationForCommunityMember()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var response = await _client.PostAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}/invitations",
+            content: null);
+
+        var invitation = await response.Content
+            .ReadFromJsonAsync<CreateCommunityInvitationResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(invitation);
+        Assert.Equal(
+            SeedIds.Neighbourhood,
+            invitation.CommunityId);
+        Assert.False(string.IsNullOrWhiteSpace(invitation.Token));
+        Assert.True(invitation.ExpiresAt > DateTimeOffset.UtcNow);
+        Assert.Equal(
+            $"/api/invitations/{invitation.Token}",
+            response.Headers.Location?.ToString());
+    }
+    
+    [Fact]
+    public async Task CreateInvitation_DoesNotRevealCommunityToNonMember()
+    {
+        AuthenticateAs(SeedIds.Casey);
+
+        var response = await _client.PostAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}/invitations",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+    
+    [Fact]
+    public async Task CreateInvitation_AllowsCreatorOfNewCommunity()
+    {
+        AuthenticateAs(SeedIds.Casey);
+
+        var createCommunityResponse =
+            await _client.PostAsJsonAsync(
+                "/api/communities",
+                new CreateCommunityRequest("Casey's Community"));
+
+        var community = await createCommunityResponse.Content
+            .ReadFromJsonAsync<CommunityResponse>();
+
+        var invitationResponse = await _client.PostAsync(
+            $"/api/communities/{community!.Id}/invitations",
+            content: null);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            invitationResponse.StatusCode);
+    }
+    
+    [Fact]
+    public async Task GetInvitation_ReturnsCommunityPreview()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var createResponse = await _client.PostAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}/invitations",
+            content: null);
+
+        var created = await createResponse.Content
+            .ReadFromJsonAsync<CreateCommunityInvitationResponse>();
+
+        AuthenticateAs(SeedIds.Casey);
+
+        var response = await _client.GetAsync(
+            $"/api/invitations/{created!.Token}");
+
+        var preview = await response.Content
+            .ReadFromJsonAsync<CommunityInvitationPreviewResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(preview);
+        Assert.Equal(
+            SeedIds.Neighbourhood,
+            preview.CommunityId);
+        Assert.Equal(
+            "Our Neighbourhood",
+            preview.CommunityName);
+        Assert.False(preview.AlreadyMember);
+    }
+    
+    [Fact]
+    public async Task GetInvitation_IdentifiesExistingMember()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var createResponse = await _client.PostAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}/invitations",
+            content: null);
+
+        var created = await createResponse.Content
+            .ReadFromJsonAsync<CreateCommunityInvitationResponse>();
+
+        var response = await _client.GetAsync(
+            $"/api/invitations/{created!.Token}");
+
+        var preview = await response.Content
+            .ReadFromJsonAsync<CommunityInvitationPreviewResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(preview!.AlreadyMember);
+    }
+    
+    [Fact]
+    public async Task GetInvitation_ReturnsNotFoundForUnknownToken()
+    {
+        AuthenticateAs(SeedIds.Casey);
+
+        var response = await _client.GetAsync(
+            "/api/invitations/not-a-real-invitation");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+    
+    [Fact]
+    public async Task GetInvitation_DoesNotAddUserToCommunity()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var createResponse = await _client.PostAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}/invitations",
+            content: null);
+
+        var created = await createResponse.Content
+            .ReadFromJsonAsync<CreateCommunityInvitationResponse>();
+
+        AuthenticateAs(SeedIds.Casey);
+
+        await _client.GetAsync(
+            $"/api/invitations/{created!.Token}");
+
+        var communities = await _client
+            .GetFromJsonAsync<CommunityResponse[]>(
+                "/api/communities");
+
+        Assert.DoesNotContain(
+            communities!,
+            community =>
+                community.Id == SeedIds.Neighbourhood);
+    }
+    
+    [Fact]
+    public async Task AcceptInvitation_AddsUserToCommunity()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var communityResponse = await _client.PostAsJsonAsync(
+            "/api/communities",
+            new CreateCommunityRequest("Repair Café"));
+
+        var community = await communityResponse.Content
+            .ReadFromJsonAsync<CommunityResponse>();
+
+        var invitationResponse = await _client.PostAsync(
+            $"/api/communities/{community!.Id}/invitations",
+            content: null);
+
+        var invitation = await invitationResponse.Content
+            .ReadFromJsonAsync<CreateCommunityInvitationResponse>();
+
+        AuthenticateAs(SeedIds.Casey);
+
+        var acceptResponse = await _client.PostAsync(
+            $"/api/invitations/{invitation!.Token}/accept",
+            content: null);
+
+        var accepted = await acceptResponse.Content
+            .ReadFromJsonAsync<AcceptCommunityInvitationResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
+        Assert.NotNull(accepted);
+        Assert.Equal(community.Id, accepted.CommunityId);
+        Assert.True(accepted.MembershipCreated);
+
+        var communities = await _client
+            .GetFromJsonAsync<CommunityResponse[]>(
+                "/api/communities");
+
+        Assert.Contains(
+            communities!,
+            result => result.Id == community.Id);
+    }
+    
+    [Fact]
+    public async Task AcceptInvitation_IsIdempotentForExistingMember()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var invitationResponse = await _client.PostAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}/invitations",
+            content: null);
+
+        var invitation = await invitationResponse.Content
+            .ReadFromJsonAsync<CreateCommunityInvitationResponse>();
+
+        var firstResponse = await _client.PostAsync(
+            $"/api/invitations/{invitation!.Token}/accept",
+            content: null);
+
+        var secondResponse = await _client.PostAsync(
+            $"/api/invitations/{invitation.Token}/accept",
+            content: null);
+
+        var first = await firstResponse.Content
+            .ReadFromJsonAsync<AcceptCommunityInvitationResponse>();
+
+        var second = await secondResponse.Content
+            .ReadFromJsonAsync<AcceptCommunityInvitationResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        Assert.False(first!.MembershipCreated);
+        Assert.False(second!.MembershipCreated);
+    }
 }
