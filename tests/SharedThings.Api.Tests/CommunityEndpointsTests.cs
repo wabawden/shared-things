@@ -8,14 +8,27 @@ using Xunit;
 namespace SharedThings.Api.Tests;
 
 public sealed class CommunityEndpointsTests :
-    IClassFixture<SharedThingsApiFactory>
+    IClassFixture<SharedThingsApiFactory>,
+    IAsyncLifetime
 {
+    private readonly SharedThingsApiFactory _factory;
     private readonly HttpClient _client;
 
     public CommunityEndpointsTests(
-        SharedThingsApiFactory application)
+        SharedThingsApiFactory factory)
     {
-        _client = application.CreateClient();
+        _factory = factory;
+        _client = factory.CreateClient();
+    }
+
+    public Task InitializeAsync()
+    {
+        return _factory.ResetDatabaseAsync();
+    }
+
+    public Task DisposeAsync()
+    {
+        return Task.CompletedTask;
     }
 
     [Fact]

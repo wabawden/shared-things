@@ -5,6 +5,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SharedThings.Api.Data;
 using Testcontainers.PostgreSql;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+using Respawn;
+using Respawn.Graph;
 using Xunit;
 
 namespace SharedThings.Api.Tests;
@@ -13,6 +17,8 @@ public sealed class SharedThingsApiFactory :
     WebApplicationFactory<Program>,
     IAsyncLifetime
 {
+    private Respawner _respawner = null!;
+    
     private readonly PostgreSqlContainer _postgres =
         new PostgreSqlBuilder("postgres:18-alpine")
             .WithDatabase("shared_things_tests")
@@ -37,18 +43,52 @@ public sealed class SharedThingsApiFactory :
             });
     }
 
-    async Task IAsyncLifetime.InitializeAsync()
+    public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
 
+        using (var scope = Services.CreateScope())
+        {
+            var db = scope.ServiceProvider
+                .GetRequiredService<SharedThingsDbContext>();
+
+            await db.Database.MigrateAsync();
+            await TestDataSeeder.SeedAsync(db);
+        }
+
+        await using var connection = new NpgsqlConnection(
+            _postgres.GetConnectionString());
+
+        await connection.OpenAsync();
+
+        _respawner = await Respawner.CreateAsync(
+            connection,
+            new RespawnerOptions
+            {
+                DbAdapter = DbAdapter.Postgres,
+                SchemasToInclude = ["public"],
+                TablesToIgnore =
+                [
+                    new Table("__EFMigrationsHistory")
+                ]
+            });
+    }
+    
+    public async Task ResetDatabaseAsync()
+    {
+        await using var connection = new NpgsqlConnection(
+            _postgres.GetConnectionString());
+
+        await connection.OpenAsync();
+
+        await _respawner.ResetAsync(connection);
+
         using var scope = Services.CreateScope();
 
-        var dbContext = scope.ServiceProvider
+        var db = scope.ServiceProvider
             .GetRequiredService<SharedThingsDbContext>();
 
-        await dbContext.Database.MigrateAsync();
-
-        await TestDataSeeder.SeedAsync(dbContext);
+        await TestDataSeeder.SeedAsync(db);
     }
 
     async Task IAsyncLifetime.DisposeAsync()
