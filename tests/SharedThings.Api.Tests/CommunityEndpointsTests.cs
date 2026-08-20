@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using SharedThings.Api.Authentication;
+using SharedThings.Api.Contracts;
 using SharedThings.Api.Data;
 using Xunit;
 
@@ -20,14 +21,31 @@ public sealed class CommunityEndpointsTests :
     [Fact]
     public async Task MyCommunities_ReturnsOnlyCommunitiesTheUserBelongsTo()
     {
+        AuthenticateAs(SeedIds.Casey);
+
+        var createResponse = await _client.PostAsJsonAsync(
+            "/api/communities",
+            new CreateCommunityRequest("Casey's Community"));
+
+        var caseysCommunity =
+            await createResponse.Content
+                .ReadFromJsonAsync<CommunityResponse>();
+
         AuthenticateAs(SeedIds.Bill);
 
-        var communities = await _client.GetFromJsonAsync<Community[]>("/api/communities");
+        var communities =
+            await _client.GetFromJsonAsync<CommunityResponse[]>(
+                "/api/communities");
 
-        var community = Assert.Single(communities!);
-        Assert.Equal(SeedIds.Neighbourhood, community.Id);
+        Assert.Contains(
+            communities!,
+            community => community.Id == SeedIds.Neighbourhood);
+
+        Assert.DoesNotContain(
+            communities!,
+            community => community.Id == caseysCommunity!.Id);
     }
-
+    
     [Fact]
     public async Task CommunityItems_ReturnsCatalogueForMember()
     {
@@ -64,33 +82,53 @@ public sealed class CommunityEndpointsTests :
     }
     
     [Fact]
-    public async Task CreateCommunity_CreatesCommunityAndAddsCreatorAsMember()
+    public async Task CreateCommunity_ReturnsCreatedCommunity()
     {
-        AuthenticateAs(SeedIds.Casey);
+        AuthenticateAs(SeedIds.Bill);
 
         var response = await _client.PostAsJsonAsync(
             "/api/communities",
-            new
-            {
-                name = "Malmesbury Parents"
-            });
+            new CreateCommunityRequest("Repair Café"));
+
+        var community =
+            await response.Content.ReadFromJsonAsync<CommunityResponse>();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-        var createdCommunity =
-            await response.Content.ReadFromJsonAsync<Community>();
-
-        Assert.NotNull(createdCommunity);
-        Assert.Equal("Malmesbury Parents", createdCommunity.Name);
-
-        var communities = await _client.GetFromJsonAsync<Community[]>(
-            "/api/communities");
-
-        Assert.Contains(
-            communities!,
-            community => community.Id == createdCommunity.Id);
+        Assert.NotNull(community);
+        Assert.NotEqual(Guid.Empty, community.Id);
+        Assert.Equal("Repair Café", community.Name);
+        Assert.Equal(
+            $"/api/communities/{community.Id}",
+            response.Headers.Location?.ToString());
     }
 
+    [Fact]
+    public async Task CreateCommunity_DoesNotAddOtherUsersAsMembers()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var createResponse = await _client.PostAsJsonAsync(
+            "/api/communities",
+            new CreateCommunityRequest("Repair Café"));
+
+        var created =
+            await createResponse.Content.ReadFromJsonAsync<CommunityResponse>();
+
+        AuthenticateAs(SeedIds.Alex);
+
+        var getResponse =
+            await _client.GetAsync("/api/communities");
+
+        var communities =
+            await getResponse.Content
+                .ReadFromJsonAsync<CommunityResponse[]>();
+
+        Assert.DoesNotContain(
+            communities!,
+            community => community.Id == created!.Id);
+    }
+    
+    
     [Fact]
     public async Task CreateCommunity_RejectsBlankName()
     {
@@ -112,5 +150,94 @@ public sealed class CommunityEndpointsTests :
         _client.DefaultRequestHeaders.Add(
             DevelopmentAuthenticationHandler.UserIdHeader,
             userId.ToString());
+    }
+    
+    [Fact]
+    public async Task GetCommunities_ReturnsCommunitiesForAuthenticatedUser()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var response = await _client.GetAsync("/api/communities");
+        var communities =
+            await response.Content.ReadFromJsonAsync<CommunityResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(
+            communities!,
+            community => community.Id == SeedIds.Neighbourhood);
+    }
+
+    [Fact]
+    public async Task GetCommunities_DoesNotReturnCommunitiesForNonMember()
+    {
+        AuthenticateAs(SeedIds.Casey);
+
+        var response = await _client.GetAsync("/api/communities");
+        var communities =
+            await response.Content.ReadFromJsonAsync<CommunityResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(communities!);
+    }
+    
+    [Fact]
+    public async Task GetCommunity_ReturnsCommunityForMember()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var response = await _client.GetAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}");
+
+        var community = await response.Content
+            .ReadFromJsonAsync<CommunityResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(community);
+        Assert.Equal(SeedIds.Neighbourhood, community.Id);
+        Assert.Equal("Our Neighbourhood", community.Name);
+    }
+    
+    [Fact]
+    public async Task GetCommunity_DoesNotRevealCommunityToNonMember()
+    {
+        AuthenticateAs(SeedIds.Casey);
+
+        var response = await _client.GetAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+    
+    [Fact]
+    public async Task GetCommunity_ReturnsNotFoundForUnknownCommunity()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var response = await _client.GetAsync(
+            $"/api/communities/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+    
+    [Fact]
+    public async Task GetCommunity_ReturnsNewlyCreatedCommunityToCreator()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var createResponse = await _client.PostAsJsonAsync(
+            "/api/communities",
+            new CreateCommunityRequest("Repair Café"));
+
+        var created = await createResponse.Content
+            .ReadFromJsonAsync<CommunityResponse>();
+
+        var getResponse = await _client.GetAsync(
+            $"/api/communities/{created!.Id}");
+
+        var retrieved = await getResponse.Content
+            .ReadFromJsonAsync<CommunityResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal(created, retrieved);
     }
 }

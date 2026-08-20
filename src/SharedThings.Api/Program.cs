@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using SharedThings.Api.Authentication;
@@ -100,8 +101,9 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddAuthorization();
-builder.Services.AddSingleton<ICommunityStore, InMemoryCommunityStore>();
-builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, CommunityMemberHandler>();
+builder.Services.AddScoped<
+    IAuthorizationHandler,
+    CommunityMemberHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddProblemDetails();
 
