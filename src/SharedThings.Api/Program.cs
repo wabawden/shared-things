@@ -187,13 +187,20 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/", () => Results.Ok(new { name = "Shared Things API" }));
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+app.MapGet(
+    "/api",
+    () => Results.Ok(new { name = "Shared Things API" }));
 app.MapHealthChecks("/health")
     .AllowAnonymous();
 app.MapAuthenticationEndpoints();
 app.MapCommunityEndpoints();
 app.MapItemEndpoints();
 app.MapInvitationEndpoints();
+
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

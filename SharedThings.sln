@@ -6,6 +6,29 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharedThings.Api", "src/Sha
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharedThings.Api.Tests", "tests/SharedThings.Api.Tests/SharedThings.Api.Tests.csproj", "{1D17A324-8182-411A-AE4F-9B7E489858AE}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CanIBorrow.Web", "CanIBorrow.Web", "{EACC4947-F6AC-474D-956D-5D4149E29918}"
+	ProjectSection(SolutionItems) = preProject
+		src/CanIBorrow.Web/.gitignore = src/CanIBorrow.Web/.gitignore
+		src/CanIBorrow.Web/README.md = src/CanIBorrow.Web/README.md
+		src/CanIBorrow.Web/eslint.config.js = src/CanIBorrow.Web/eslint.config.js
+		src/CanIBorrow.Web/index.html = src/CanIBorrow.Web/index.html
+		src/CanIBorrow.Web/package-lock.json = src/CanIBorrow.Web/package-lock.json
+		src/CanIBorrow.Web/package.json = src/CanIBorrow.Web/package.json
+		src/CanIBorrow.Web/public/favicon.svg = src/CanIBorrow.Web/public/favicon.svg
+		src/CanIBorrow.Web/public/icons.svg = src/CanIBorrow.Web/public/icons.svg
+		src/CanIBorrow.Web/src/App.css = src/CanIBorrow.Web/src/App.css
+		src/CanIBorrow.Web/src/App.tsx = src/CanIBorrow.Web/src/App.tsx
+		src/CanIBorrow.Web/src/assets/hero.png = src/CanIBorrow.Web/src/assets/hero.png
+		src/CanIBorrow.Web/src/assets/react.svg = src/CanIBorrow.Web/src/assets/react.svg
+		src/CanIBorrow.Web/src/assets/vite.svg = src/CanIBorrow.Web/src/assets/vite.svg
+		src/CanIBorrow.Web/src/index.css = src/CanIBorrow.Web/src/index.css
+		src/CanIBorrow.Web/src/main.tsx = src/CanIBorrow.Web/src/main.tsx
+		src/CanIBorrow.Web/tsconfig.app.json = src/CanIBorrow.Web/tsconfig.app.json
+		src/CanIBorrow.Web/tsconfig.json = src/CanIBorrow.Web/tsconfig.json
+		src/CanIBorrow.Web/tsconfig.node.json = src/CanIBorrow.Web/tsconfig.node.json
+		src/CanIBorrow.Web/vite.config.ts = src/CanIBorrow.Web/vite.config.ts
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

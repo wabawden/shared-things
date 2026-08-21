@@ -5,3 +5,6 @@ obj/
 *.user
 *.suo
 TestResults/
+
+# Generated frontend build
+src/SharedThings.Api/wwwroot/
