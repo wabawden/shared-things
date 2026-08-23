@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Json;
+using SharedThings.Api.Contracts;
 using Xunit;
 
 namespace SharedThings.Api.Tests;
@@ -25,6 +27,28 @@ public sealed class SiteTests :
         var response = await _client.GetAsync("/health");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+    
+    [Fact]
+    public async Task Register_AuthenticatesNewUser()
+    {
+        var registerResponse = await _client.PostAsJsonAsync(
+            "/api/auth/register",
+            new RegisterRequest(
+                "new-user@example.com",
+                "Password1",
+                "New User"));
+
+        var meResponse =
+            await _client.GetAsync("/api/auth/me");
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            registerResponse.StatusCode);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            meResponse.StatusCode);
     }
 
 }

@@ -203,4 +203,5 @@ public static class InvitationEndpoints
                 invitation.CommunityName,
                 MembershipCreated: true));
     }
+    
 }

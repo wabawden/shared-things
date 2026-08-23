@@ -1,38 +1,90 @@
+import { Route, Routes } from "react-router";
+import { AppLayout } from "./components/AppLayout";
+import { PagePlaceholder } from "./components/PagePlaceholder";
+import { RequireAuthentication } from "./auth/RequireAuthentication";
+import { LoginPage } from "./pages/LoginPage";
+import { RegisterPage } from "./pages/RegisterPage";
+
 function App() {
     return (
-        <div className="min-h-screen bg-stone-50 text-stone-900">
-            <header className="border-b border-stone-200 bg-white">
-                <div className="mx-auto max-w-5xl px-6 py-5">
-          <span className="text-xl font-semibold text-emerald-800">
-            Can I borrow..?
-          </span>
-                </div>
-            </header>
+        <Routes>
+            <Route element={<AppLayout />}>
+                <Route
+                    index
+                    element={
+                        <PagePlaceholder
+                            title="Useful things are closer than you think."
+                            description="Create a private catalogue of things you are happy to lend, and share them with people you already know."
+                        />
+                    }
+                />
 
-            <main className="mx-auto max-w-5xl px-6 py-16">
-                <div className="max-w-2xl">
-                    <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-emerald-700">
-                        Share locally
-                    </p>
+                <Route path="login" element={<LoginPage />} />
+                <Route path="register" element={<RegisterPage />} />
 
-                    <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-                        Useful things are closer than you think.
-                    </h1>
+                <Route element={<RequireAuthentication />}>
+                    <Route
+                        path="dashboard"
+                        element={
+                            <PagePlaceholder
+                                title="Your dashboard"
+                                description="Your communities and personal catalogue will appear here."
+                            />
+                        }
+                    />
 
-                    <p className="mt-6 text-lg leading-8 text-stone-600">
-                        Create a private catalogue of things you are happy to lend,
-                        and share them with people you already know.
-                    </p>
+                    <Route
+                        path="items/new"
+                        element={
+                            <PagePlaceholder
+                                title="Add an item"
+                                description="Add something that you would be happy to lend."
+                            />
+                        }
+                    />
 
-                    <button
-                        type="button"
-                        className="mt-8 rounded-lg bg-emerald-700 px-5 py-3 font-semibold text-white transition hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
-                    >
-                        Get started
-                    </button>
-                </div>
-            </main>
-        </div>
+                    <Route
+                        path="communities/new"
+                        element={
+                            <PagePlaceholder
+                                title="Create a community"
+                                description="Create a private sharing group."
+                            />
+                        }
+                    />
+
+                    <Route
+                        path="communities/:communityId"
+                        element={
+                            <PagePlaceholder
+                                title="Community"
+                                description="Community catalogue and invitation controls."
+                            />
+                        }
+                    />
+                </Route>
+
+                <Route
+                    path="join/:token"
+                    element={
+                        <PagePlaceholder
+                            title="Join a community"
+                            description="Preview and accept a community invitation."
+                        />
+                    }
+                />
+
+                <Route
+                    path="*"
+                    element={
+                        <PagePlaceholder
+                            title="Page not found"
+                            description="The page you requested does not exist."
+                        />
+                    }
+                />
+            </Route>
+        </Routes>
     );
 }
 

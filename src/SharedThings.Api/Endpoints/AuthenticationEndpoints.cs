@@ -30,7 +30,8 @@ public static class AuthenticationEndpoints
 
     private static async Task<IResult> Register(
         RegisterRequest request,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager)
     {
         var email = request.Email.Trim();
         var displayName = request.DisplayName.Trim();
@@ -66,6 +67,10 @@ public static class AuthenticationEndpoints
                             .Select(error => error.Description)
                             .ToArray()));
         }
+
+        await signInManager.SignInAsync(
+            user,
+            isPersistent: false);
 
         return Results.Created(
             "/api/auth/me",
