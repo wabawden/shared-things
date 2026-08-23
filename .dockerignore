@@ -1,0 +1,13 @@
+.git
+.gitignore
+
+**/bin
+**/obj
+**/node_modules
+
+src/SharedThings.Api/wwwroot
+
+tests
+
+README.md
+compose.yaml

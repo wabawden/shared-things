@@ -21,7 +21,7 @@ builder.Services.AddDbContext<SharedThingsDbContext>(
             ?? throw new InvalidOperationException(
                 "Connection string 'SharedThings' was not found.");
 
-        options.UseNpgsql(connectionString);
+        options.UseNpgsql( connectionString, npgsqlOptions => npgsqlOptions.EnableRetryOnFailure());
     });
 
 builder.Services
@@ -171,9 +171,21 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    
 });
 
 var app = builder.Build();
+
+if (app.Environment.IsProduction())
+{
+    await using var scope =
+        app.Services.CreateAsyncScope();
+
+    var db = scope.ServiceProvider
+        .GetRequiredService<SharedThingsDbContext>();
+
+    await db.Database.MigrateAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -181,6 +193,7 @@ if (app.Environment.IsDevelopment())
         app.Services,
         app.Configuration);
 }
+
 
 app.UseExceptionHandler();
 app.UseRateLimiter();
