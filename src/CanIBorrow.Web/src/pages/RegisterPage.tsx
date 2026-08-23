@@ -158,6 +158,19 @@ export function RegisterPage() {
                     </p>
                 </div>
 
+                <p className="text-sm leading-6 text-stone-500">
+                    When you create an account, we use your information
+                    to provide and protect the service as described in
+                    our{" "}
+                    <Link
+                        to="/privacy"
+                        className="font-semibold text-emerald-800 hover:underline"
+                    >
+                        privacy and cookie notice
+                    </Link>
+                    .
+                </p>
+                
                 <button
                     type="submit"
                     disabled={isSubmitting}

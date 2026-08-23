@@ -4,6 +4,12 @@ import { PagePlaceholder } from "./components/PagePlaceholder";
 import { RequireAuthentication } from "./auth/RequireAuthentication";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { CommunityPage } from "./pages/CommunityPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
+import { JoinCommunityPage } from "./pages/JoinCommunityPage";
+import { CreateCommunityPage } from "./pages/CreateCommunityPage";
+import { CreateItemPage } from "./pages/CreateItemPage";
 
 function App() {
     return (
@@ -25,53 +31,28 @@ function App() {
                 <Route element={<RequireAuthentication />}>
                     <Route
                         path="dashboard"
-                        element={
-                            <PagePlaceholder
-                                title="Your dashboard"
-                                description="Your communities and personal catalogue will appear here."
-                            />
-                        }
+                        element={<DashboardPage />}
                     />
 
                     <Route
                         path="items/new"
-                        element={
-                            <PagePlaceholder
-                                title="Add an item"
-                                description="Add something that you would be happy to lend."
-                            />
-                        }
+                        element={<CreateItemPage />}
                     />
 
                     <Route
                         path="communities/new"
-                        element={
-                            <PagePlaceholder
-                                title="Create a community"
-                                description="Create a private sharing group."
-                            />
-                        }
+                        element={<CreateCommunityPage />}
                     />
 
                     <Route
                         path="communities/:communityId"
-                        element={
-                            <PagePlaceholder
-                                title="Community"
-                                description="Community catalogue and invitation controls."
-                            />
-                        }
+                        element={<CommunityPage />}
                     />
                 </Route>
 
                 <Route
                     path="join/:token"
-                    element={
-                        <PagePlaceholder
-                            title="Join a community"
-                            description="Preview and accept a community invitation."
-                        />
-                    }
+                    element={<JoinCommunityPage />}
                 />
 
                 <Route
@@ -84,6 +65,11 @@ function App() {
                     }
                 />
             </Route>
+
+            <Route
+                path="privacy"
+                element={<PrivacyPage />}
+            />
         </Routes>
     );
 }

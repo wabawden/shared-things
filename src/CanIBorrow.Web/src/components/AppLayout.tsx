@@ -141,8 +141,17 @@ export function AppLayout() {
             </main>
 
             <footer className="border-t border-stone-200 bg-white">
-                <div className="mx-auto max-w-5xl px-6 py-5 text-sm text-stone-500">
-                    Share useful things with people you already know.
+                <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-5 text-sm text-stone-500">
+    <span>
+      Share useful things with people you already know.
+    </span>
+
+                    <Link
+                        to="/privacy"
+                        className="font-medium text-stone-600 hover:text-emerald-800 hover:underline"
+                    >
+                        Privacy and cookies
+                    </Link>
                 </div>
             </footer>
         </div>
