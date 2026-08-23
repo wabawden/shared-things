@@ -10,6 +10,15 @@ using SharedThings.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var railwayPort =
+    Environment.GetEnvironmentVariable("PORT");
+
+if (int.TryParse(railwayPort, out var port))
+{
+    builder.WebHost.UseUrls(
+        $"http://0.0.0.0:{port}");
+}
+
 builder.Services.AddDbContext<SharedThingsDbContext>(
     (serviceProvider, options) =>
     {
