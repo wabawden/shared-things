@@ -9,7 +9,7 @@ import {
 import { ItemPlaceholder } from "../components/ItemPlaceholder";
 import { PagePlaceholder } from "../components/PagePlaceholder";
 
-type ItemNavigationState = {
+export type ItemNavigationState = {
     returnTo?: string;
     returnLabel?: string;
 };

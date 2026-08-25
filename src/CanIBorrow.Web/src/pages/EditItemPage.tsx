@@ -17,6 +17,7 @@ import {
     type ItemDetails,
 } from "../api/items";
 import { PagePlaceholder } from "../components/PagePlaceholder";
+import {type ItemNavigationState} from "../pages/ItemDetailsPage.tsx"
 
 export function EditItemPage() {
     const { itemId } = useParams();
