@@ -10,6 +10,8 @@ import { PrivacyPage } from "./pages/PrivacyPage";
 import { JoinCommunityPage } from "./pages/JoinCommunityPage";
 import { CreateCommunityPage } from "./pages/CreateCommunityPage";
 import { CreateItemPage } from "./pages/CreateItemPage";
+import { ItemDetailsPage } from "./pages/ItemDetailsPage";
+import { EditItemPage } from "./pages/EditItemPage";
 
 function App() {
     return (
@@ -48,6 +50,9 @@ function App() {
                         path="communities/:communityId"
                         element={<CommunityPage />}
                     />
+
+                    <Route path="items/:itemId" element={<ItemDetailsPage />} />
+                    <Route path="items/:itemId/edit" element={<EditItemPage />} />
                 </Route>
 
                 <Route

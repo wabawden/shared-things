@@ -12,6 +12,7 @@ import type {
     Item,
 } from "../types/entities";
 import { InvitationPanel } from "../components/InvitationPanel";
+import {ItemPlaceholder} from "../components/ItemPlaceholder";
 
 export function CommunityPage() {
     const { communityId } = useParams();
@@ -191,12 +192,21 @@ export function CommunityPage() {
                         </p>
                     </div>
                 ) : (
-                    <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <ul className="mt-5 grid gap-4 sm:grid-cols-2">
                         {items.map((item) => (
                             <li
                                 key={item.id}
-                                className="flex flex-col rounded-xl border border-stone-200 bg-white p-5"
+                                className=""
                             >
+                                <Link
+                                    to={`/items/${item.id}`}
+                                    state={{
+                                        returnTo: `/communities/${community.id}`,
+                                        returnLabel: `Back to ${community.name}`,}}
+                                    className="block rounded-xl border border-stone-200 bg-white p-5 transition hover:border-emerald-300 hover:shadow-sm flex gap-4"
+                                >
+                                    <ItemPlaceholder className="aspect-square rounded-xl w-24 h-24" />
+                                    <div className="shrink-0">
                                 <h3 className="font-semibold">
                                     {item.name}
                                 </h3>
@@ -215,7 +225,7 @@ export function CommunityPage() {
                                     <p className="mt-4 border-t border-stone-100 pt-3 text-sm text-stone-500">
                                         Condition: {item.condition}
                                     </p>
-                                )}
+                                )}</div></Link>
                             </li>
                         ))}
                     </ul>

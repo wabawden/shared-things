@@ -9,6 +9,7 @@ import type {
     Community,
     Item,
 } from "../types/entities";
+import { ItemPlaceholder } from "../components/ItemPlaceholder"
 
 export function DashboardPage() {
     const { user } = useAuth();
@@ -226,8 +227,18 @@ function ItemsSection({
                     {items.map((item) => (
                         <li
                             key={item.id}
-                            className="rounded-xl border border-stone-200 bg-white p-5"
+                            className=""
                         >
+                            <Link
+                                to={`/items/${item.id}`}
+                                state={{
+                                    returnTo: "/dashboard",
+                                    returnLabel: "Back to your items",
+                                }}
+                                className="block rounded-xl border border-stone-200 bg-white p-5 transition hover:border-emerald-300 hover:shadow-sm flex gap-4"
+                            >
+                            <ItemPlaceholder className="aspect-square rounded-xl w-24 h-24" />
+                            <div className="shrink-0">
                             <h3 className="font-semibold">
                                 {item.name}
                             </h3>
@@ -242,7 +253,7 @@ function ItemsSection({
                                 <p className="mt-3 text-sm text-stone-500">
                                     Condition: {item.condition}
                                 </p>
-                            )}
+                            )}</div></Link>
                         </li>
                     ))}
                 </ul>
