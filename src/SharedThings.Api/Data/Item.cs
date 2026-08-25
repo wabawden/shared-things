@@ -26,11 +26,11 @@ public sealed class Item
 
     public Guid OwnerId { get; private set; }
 
-    public string Name { get; private set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
 
-    public string Description { get; private set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
 
-    public string Condition { get; private set; } = string.Empty;
+    public string Condition { get;  set; } = string.Empty;
 
     public ApplicationUser Owner { get; private set; } = null!;
 }

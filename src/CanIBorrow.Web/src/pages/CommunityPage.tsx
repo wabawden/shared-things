@@ -163,7 +163,7 @@ export function CommunityPage() {
                 </button>
             </div>
 
-            <InvitationPanel communityId={community.id} />.
+            <InvitationPanel communityId={community.id} />
 
             <section className="mt-10">
                 <div className="flex flex-wrap items-center justify-between gap-4">

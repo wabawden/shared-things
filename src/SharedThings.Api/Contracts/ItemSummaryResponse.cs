@@ -1,6 +1,6 @@
 namespace SharedThings.Api.Contracts;
 
-public sealed record ItemResponse(
+public sealed record ItemSummaryResponse(
     Guid Id,
     Guid OwnerId,
     string OwnerDisplayName,
