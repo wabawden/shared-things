@@ -238,7 +238,7 @@ function ItemsSection({
                                 className="block rounded-xl border border-stone-200 bg-white p-5 transition hover:border-emerald-300 hover:shadow-sm flex gap-4"
                             >
                             <ItemPlaceholder className="aspect-square rounded-xl w-24 h-24" />
-                            <div className="shrink-0">
+                            <div className="shrink-1">
                             <h3 className="font-semibold">
                                 {item.name}
                             </h3>

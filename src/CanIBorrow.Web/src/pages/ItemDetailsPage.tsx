@@ -108,7 +108,7 @@ export function ItemDetailsPage() {
     }
 
     return (
-        <main className="mx-auto w-full max-w-5xl px-4 py-8">
+        <section>
             <Link
                 to={returnTo}
                 className="mb-6 inline-flex text-sm font-semibold text-emerald-800 hover:underline"
@@ -169,6 +169,6 @@ export function ItemDetailsPage() {
                     </div>
                 </section>
             </div>
-        </main>
+</section>
     );
 }
