@@ -39,7 +39,7 @@ function App() {
 
                             <div className="overflow-hidden rounded-2xl bg-stone-100 shadow-sm">
                                 <img
-                                    src="../public/homesplash.jpg"
+                                    src="homesplash.jpg"
                                     alt="Neighbours sharing useful household items"
                                     width={1920}
                                     height={1280}
