@@ -54,9 +54,19 @@ export function AppLayout() {
                 <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-5">
                     <Link
                         to={user ? "/dashboard" : "/"}
-                        className="text-xl font-semibold text-emerald-800"
+                        className="text-xl font-semibold text-emerald-800 inline-flex items-center gap-3"
                     >
-                        Can I borrow..?
+                        <img
+                            src="/favicon.svg"
+                            alt=""
+                            width={40}
+                            height={40}
+                            className="h-9 w-9 sm:h-10 sm:w-10"
+                        />
+
+                        <span className="text-xl font-bold tracking-tight sm:text-2xl">
+                            Can I borrow…?
+                        </span>
                     </Link>
 
                     {!isLoading && (
