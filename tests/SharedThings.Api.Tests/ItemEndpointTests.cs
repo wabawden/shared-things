@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using SharedThings.Api.Authentication;
 using SharedThings.Api.Contracts;
@@ -31,6 +32,25 @@ public sealed class ItemEndpointsTests :
     public Task DisposeAsync()
     {
         return Task.CompletedTask;
+    }
+    
+    private async Task<Guid> CreateItemAsync()
+    {
+        var response = await _client.PostAsJsonAsync(
+            "/api/items",
+            new CreateItemRequest(
+                "Test item",
+                "Created for a deletion test.",
+                "Good"));
+
+        response.EnsureSuccessStatusCode();
+
+        using var json = await JsonDocument.ParseAsync(
+            await response.Content.ReadAsStreamAsync());
+
+        return json.RootElement
+            .GetProperty("id")
+            .GetGuid();
     }
     
     [Fact]
@@ -448,6 +468,82 @@ public sealed class ItemEndpointsTests :
             request);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+    
+    [Fact]
+    public async Task DeleteItem_RemovesItemOwnedByCurrentUser()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var itemId = await CreateItemAsync();
+
+        var deleteResponse = await _client.DeleteAsync(
+            $"/api/items/{itemId}");
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            deleteResponse.StatusCode);
+
+        var getResponse = await _client.GetAsync(
+            $"/api/items/{itemId}");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            getResponse.StatusCode);
+    }
+    
+    [Fact]
+    public async Task DeleteItem_ReturnsNotFoundWhenItemDoesNotExist()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var missingItemId = Guid.NewGuid();
+
+        var response = await _client.DeleteAsync(
+            $"/api/items/{missingItemId}");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+    
+    [Fact]
+    public async Task DeleteItem_DoesNotAllowAnotherUserToDeleteItem()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var itemId = await CreateItemAsync();
+
+        AuthenticateAs(SeedIds.Alex);
+
+        var deleteResponse = await _client.DeleteAsync(
+            $"/api/items/{itemId}");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            deleteResponse.StatusCode);
+
+        AuthenticateAs(SeedIds.Bill);
+
+        var getResponse = await _client.GetAsync(
+            $"/api/items/{itemId}");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            getResponse.StatusCode);
+    }
+    
+    [Fact]
+    public async Task DeleteItem_RequiresAuthentication()
+    {
+        var itemId = Guid.NewGuid();
+
+        var response = await _client.DeleteAsync(
+            $"/api/items/{itemId}");
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            response.StatusCode);
     }
     
     private void AuthenticateAs(Guid userId)

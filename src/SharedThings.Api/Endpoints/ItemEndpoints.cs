@@ -21,8 +21,8 @@ public static class ItemEndpoints
         group.MapPost("/", CreateItem);
         group.MapGet("/{itemId:guid}", GetItem);
         group.MapPut("/{itemId:guid}", UpdateItem);
+        group.MapDelete("/{itemId:guid}", DeleteItem);
         
-
         return endpoints;
     }
 
@@ -294,5 +294,31 @@ public static class ItemEndpoints
                 item.OwnerId,
                 item.Owner.DisplayName),
             CanEdit: true));
+}
+    
+    private static async Task<IResult> DeleteItem(
+    Guid itemId,
+    ClaimsPrincipal principal,
+    SharedThingsDbContext db,
+    CancellationToken cancellationToken)
+{
+    var userId = Guid.Parse(
+        principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    var item = await db.Items
+        .SingleOrDefaultAsync(
+            i => i.Id == itemId && i.OwnerId == userId,
+            cancellationToken);
+    
+    if (item is null)
+    {
+        return Results.NotFound();
+    }
+
+    db.Items.Remove(item);
+    
+    await db.SaveChangesAsync(cancellationToken);
+
+    return Results.NoContent();
 }
 }

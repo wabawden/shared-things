@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { FaEdit } from "react-icons/fa";
-import { Link, useLocation, useParams } from "react-router";
-import { ApiError } from "../api/apiClient";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { ApiError, apiRequest } from "../api/apiClient";
 import {
     getItem,
     type ItemDetails,
 } from "../api/items";
 import { ItemPlaceholder } from "../components/ItemPlaceholder";
 import { PagePlaceholder } from "../components/PagePlaceholder";
+import { useModal } from "../components/modals/ModalProvider";
 
 export type ItemNavigationState = {
     returnTo?: string;
@@ -20,6 +21,9 @@ export function ItemDetailsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { openModal } = useModal();
+
+    const navigate = useNavigate();
 
     const location = useLocation();
 
@@ -31,7 +35,7 @@ export function ItemDetailsPage() {
 
     const returnLabel =
         navigationState?.returnLabel ?? "Back to dashboard";
-    
+
     useEffect(() => {
         if (!itemId) {
             setNotFound(true);
@@ -79,6 +83,32 @@ export function ItemDetailsPage() {
 
         return () => controller.abort();
     }, [itemId]);
+
+    function handleDeleteClick() {
+        openModal({
+            type: "confirmation",
+            title: "Delete this item?",
+            description:
+                "This will permanently remove the item from your catalogue.",
+            buttonText: "Delete item",
+            destructive: true,
+            onConfirm: async () => {
+                if (item === null) {
+                    return;
+                }
+                await apiRequest<void>(
+                    `/api/items/${item.id}`,
+                    {
+                        method: "DELETE",
+                    },
+                );
+
+                navigate("/dashboard", {
+                    replace: true,
+                });
+            },
+        });
+    }
 
     if (isLoading) {
         return (
@@ -146,6 +176,7 @@ export function ItemDetailsPage() {
 
                     <div className="mt-8">
                         {item.canEdit ? (
+                            <>
                             <Link
                                 to={`/items/${item.id}/edit`}
                                 state={navigationState}
@@ -154,6 +185,13 @@ export function ItemDetailsPage() {
                                 <FaEdit aria-hidden="true" />
                                 Edit item
                             </Link>
+                            <div
+                                onClick={handleDeleteClick}
+                                className="cursor-pointer ml-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700"
+                            >
+                                <FaEdit aria-hidden="true" />
+                                Delete item
+                            </div></>
                         ) : (
                             <div className="rounded-xl bg-amber-50 p-4 text-amber-950">
                                 <p className="font-semibold">
@@ -169,6 +207,6 @@ export function ItemDetailsPage() {
                     </div>
                 </section>
             </div>
-</section>
+        </section>
     );
 }
