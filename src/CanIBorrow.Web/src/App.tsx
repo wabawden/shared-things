@@ -23,7 +23,7 @@ function App() {
                     index
                     element={
                     <>
-                        <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-10 sm:px-6 sm:py-16 lg:grid-cols-2 lg:gap-14 lg:px-8">
+                        <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-10 sm:px-6 sm:pb-16 lg:grid-cols-2 lg:gap-14 lg:px-8">
                             <div>
                                 <h1 className="max-w-xl text-4xl font-bold tracking-tight text-stone-900 sm:text-5xl">
                                     Useful things are closer than you think.

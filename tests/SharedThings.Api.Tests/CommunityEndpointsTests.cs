@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using SharedThings.Api.Authentication;
 using SharedThings.Api.Contracts;
 using SharedThings.Api.Data;
@@ -31,6 +33,19 @@ public sealed class CommunityEndpointsTests :
         return Task.CompletedTask;
     }
 
+    private async Task<bool> CommunityExistsAsync(
+        Guid communityId)
+    {
+        await using var scope =
+            _factory.Services.CreateAsyncScope();
+
+        var db = scope.ServiceProvider
+            .GetRequiredService<SharedThingsDbContext>();
+
+        return await db.Communities
+            .AnyAsync(c => c.Id == communityId);
+    }
+    
     [Fact]
     public async Task MyCommunities_ReturnsOnlyCommunitiesTheUserBelongsTo()
     {
@@ -476,4 +491,130 @@ public sealed class CommunityEndpointsTests :
         Assert.False(first!.MembershipCreated);
         Assert.False(second!.MembershipCreated);
     }
+    
+    [Fact]
+    public async Task LeaveCommunity_RemovesCurrentUsersMembership()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var response = await _client.DeleteAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}/membership");
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            response.StatusCode);
+
+        var communityResponse = await _client.GetAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            communityResponse.StatusCode);
+    }
+    
+    [Fact]
+    public async Task LeaveCommunity_ReturnsNotFoundWhenUserIsNotAMember()
+    {
+        AuthenticateAs(SeedIds.Casey);
+
+        var response = await _client.DeleteAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}/membership");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+
+        AuthenticateAs(SeedIds.Alex);
+
+        var communityResponse = await _client.GetAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            communityResponse.StatusCode);
+    }
+    
+    [Fact]
+    public async Task LeaveCommunity_ReturnsNotFoundWhenCommunityDoesNotExist()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var response = await _client.DeleteAsync(
+            $"/api/communities/{Guid.NewGuid()}/membership");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+    
+    [Fact]
+    public async Task LeaveCommunity_RequiresAuthentication()
+    {
+        var response = await _client.DeleteAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}/membership");
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            response.StatusCode);
+    }
+    
+    [Fact]
+    public async Task LeaveCommunity_DoesNotDeleteUsersItems()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var leaveResponse = await _client.DeleteAsync(
+            $"/api/communities/{SeedIds.Neighbourhood}/membership");
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            leaveResponse.StatusCode);
+
+        var itemsResponse = await _client.GetAsync(
+            "/api/items/myItems");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            itemsResponse.StatusCode);
+
+        var items = await itemsResponse.Content
+            .ReadFromJsonAsync<List<ItemSummaryResponse>>();
+
+        Assert.NotNull(items);
+        Assert.Contains(
+            items,
+            item => item.Id == SeedIds.CordlessDrill);
+    }
+    
+    [Fact]
+    public async Task LeaveCommunity_DeletesCommunityWhenUserIsFinalMember()
+    {
+        AuthenticateAs(SeedIds.Bill);
+
+        var createResponse = await _client.PostAsJsonAsync(
+            "/api/communities",
+            new CreateCommunityRequest(
+                "Temporary community"));
+
+        createResponse.EnsureSuccessStatusCode();
+
+        var community =
+            await createResponse.Content
+                .ReadFromJsonAsync<CommunityResponse>();
+
+        Assert.NotNull(community);
+
+        var leaveResponse = await _client.DeleteAsync(
+            $"/api/communities/{community.Id}/membership");
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            leaveResponse.StatusCode);
+
+        var communityExists = await CommunityExistsAsync(
+            community.Id);
+
+        Assert.False(communityExists);
+    }
+    
 }

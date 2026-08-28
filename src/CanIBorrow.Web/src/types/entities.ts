@@ -1,6 +1,7 @@
 export type Community = {
     id: string;
     name: string;
+    memberCount: number;
 };
 
 export type Item = {

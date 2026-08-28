@@ -2,7 +2,7 @@ import {
     useEffect,
     useState,
 } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import {
     ApiError,
     apiRequest,
@@ -12,7 +12,8 @@ import type {
     Item,
 } from "../types/entities";
 import { InvitationPanel } from "../components/InvitationPanel";
-import {ItemPlaceholder} from "../components/ItemPlaceholder";
+import { ItemPlaceholder } from "../components/ItemPlaceholder";
+import { useModal } from "../components/modals/ModalProvider";
 
 export function CommunityPage() {
     const { communityId } = useParams();
@@ -26,6 +27,10 @@ export function CommunityPage() {
         useState<string | null>(null);
 
     const [refreshNumber, setRefreshNumber] = useState(0);
+
+    const { openModal } = useModal();
+    const navigate = useNavigate();
+
 
     useEffect(() => {
         const abortController = new AbortController();
@@ -202,34 +207,63 @@ export function CommunityPage() {
                                     to={`/items/${item.id}`}
                                     state={{
                                         returnTo: `/communities/${community.id}`,
-                                        returnLabel: `Back to ${community.name}`,}}
+                                        returnLabel: `Back to ${community.name}`,
+                                    }}
                                     className="block rounded-xl border border-stone-200 bg-white p-5 transition hover:border-emerald-300 hover:shadow-sm flex gap-4"
                                 >
                                     <ItemPlaceholder className="aspect-square rounded-xl w-24 h-24" />
                                     <div className="shrink-1">
-                                <h3 className="font-semibold">
-                                    {item.name}
-                                </h3>
+                                        <h3 className="font-semibold">
+                                            {item.name}
+                                        </h3>
 
-                                <p className="mt-1 text-sm text-emerald-800">
-                                    Shared by {item.ownerDisplayName}
-                                </p>
+                                        <p className="mt-1 text-sm text-emerald-800">
+                                            Shared by {item.ownerDisplayName}
+                                        </p>
 
-                                {item.description && (
-                                    <p className="mt-4 flex-1 text-sm leading-6 text-stone-600">
-                                        {item.description}
-                                    </p>
-                                )}
+                                        {item.description && (
+                                            <p className="mt-4 flex-1 text-sm leading-6 text-stone-600">
+                                                {item.description}
+                                            </p>
+                                        )}
 
-                                {item.condition && (
-                                    <p className="mt-4 border-t border-stone-100 pt-3 text-sm text-stone-500">
-                                        Condition: {item.condition}
-                                    </p>
-                                )}</div></Link>
+                                        {item.condition && (
+                                            <p className="mt-4 border-t border-stone-100 pt-3 text-sm text-stone-500">
+                                                Condition: {item.condition}
+                                            </p>
+                                        )}</div></Link>
                             </li>
                         ))}
                     </ul>
                 )}
+                <p className="mt-4 text-sm text-stone-500">
+                    No longer interested in this community?{" "}
+                    <button onClick={() => {
+                        openModal({
+                            type: "confirmation",
+                            title: `Leave ${community.name}?`,
+                            description: community.memberCount > 1 ?
+                                "Joining an established community is by invitation only. " +
+                                "To rejoin, you will need to contact one of its members." : "You are the only member of this community. Leaving will permanently delete the community and invalidate any outstanding invitations. Your personal items will not be deleted.",
+                            buttonText: "Leave",
+                            destructive: true,
+                            onConfirm: async () => {
+                                await apiRequest<void>(
+                                    `/api/communities/${community.id}/membership`,
+                                    {
+                                        method: "DELETE",
+                                    },
+                                );
+
+                                navigate("/dashboard", {
+                                    replace: true,
+                                });
+                            },
+                        });
+                    }} className="font-medium text-emerald-600 hover:text-emerald-500">
+                        Leave community
+                    </button>
+                </p>
             </section>
         </div>
     );

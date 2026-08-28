@@ -2,4 +2,5 @@ namespace SharedThings.Api.Contracts;
 
 public sealed record CommunityResponse(
     Guid Id,
-    string Name);
+    string Name,
+    int MemberCount);
