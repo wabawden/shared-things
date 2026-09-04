@@ -2,11 +2,16 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Amazon;
+using Amazon.Runtime;
+using Amazon.S3;
 using SharedThings.Api.Authentication;
 using SharedThings.Api.Authorization;
 using SharedThings.Api.Data;
 using SharedThings.Api.Data.Entities;
 using SharedThings.Api.Endpoints;
+using SharedThings.Api.Interfaces;
+using SharedThings.Api.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -139,6 +144,92 @@ builder.Services.AddScoped<
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
+
+builder.Services
+    .AddOptions<ItemImageOptions>()
+    .BindConfiguration(ItemImageOptions.SectionName)
+    .Validate(
+        options =>
+            !string.IsNullOrWhiteSpace(options.BucketName),
+        $"Configuration value '{ItemImageOptions.SectionName}:BucketName' was not found.")
+    .Validate(
+        options =>
+            !string.IsNullOrWhiteSpace(options.Region),
+        $"Configuration value '{ItemImageOptions.SectionName}:Region' was not found.")
+    .Validate(
+        options =>
+            !string.IsNullOrWhiteSpace(options.PublicBaseUrl),
+        $"Configuration value '{ItemImageOptions.SectionName}:PublicBaseUrl' was not found.")
+    .ValidateOnStart();
+
+var imageStorageBucketArn =
+    builder.Configuration["ItemImageStorage:BucketArn"]
+    ?? throw new InvalidOperationException(
+        "Configuration value 'ItemImageStorage:BucketArn' was not found.");
+
+const string s3BucketArnPrefix = "arn:aws:s3:::";
+if (!imageStorageBucketArn.StartsWith(
+        s3BucketArnPrefix,
+        StringComparison.Ordinal) ||
+    imageStorageBucketArn.Length == s3BucketArnPrefix.Length)
+{
+    throw new InvalidOperationException(
+        "Configuration value 'ItemImageStorage:BucketArn' must be an S3 bucket ARN.");
+}
+
+var imageStorageBucketName =
+    imageStorageBucketArn[s3BucketArnPrefix.Length..];
+
+var imageStorageRegionName =
+    builder.Configuration["ItemImageStorage:Region"]
+    ?? throw new InvalidOperationException(
+        "Configuration value 'ItemImageStorage:Region' was not found.");
+
+var imageStorageRegion =
+    RegionEndpoint.GetBySystemName(imageStorageRegionName);
+
+var developmentAccessKeyId =
+    builder.Configuration["AWS:AccessKeyId"];
+var developmentSecretAccessKey =
+    builder.Configuration["AWS:SecretAccessKey"];
+var developmentSessionToken =
+    builder.Configuration["AWS:SessionToken"];
+
+if (builder.Environment.IsDevelopment() &&
+    string.IsNullOrWhiteSpace(developmentAccessKeyId) !=
+    string.IsNullOrWhiteSpace(developmentSecretAccessKey))
+{
+    throw new InvalidOperationException(
+        "Development AWS credentials require both 'AWS:AccessKeyId' and 'AWS:SecretAccessKey'.");
+}
+
+builder.Services.AddSingleton<IAmazonS3>(_ =>
+{
+    if (builder.Environment.IsDevelopment() &&
+        !string.IsNullOrWhiteSpace(developmentAccessKeyId) &&
+        !string.IsNullOrWhiteSpace(developmentSecretAccessKey))
+    {
+        AWSCredentials credentials =
+            string.IsNullOrWhiteSpace(developmentSessionToken)
+                ? new BasicAWSCredentials(
+                    developmentAccessKeyId,
+                    developmentSecretAccessKey)
+                : new SessionAWSCredentials(
+                    developmentAccessKeyId,
+                    developmentSecretAccessKey,
+                    developmentSessionToken);
+
+        return new AmazonS3Client(
+            credentials,
+            imageStorageRegion);
+    }
+
+    return new AmazonS3Client(imageStorageRegion);
+});
+builder.Services.AddSingleton<IItemImageStorage>(serviceProvider =>
+    new S3ItemImageStorage(
+        serviceProvider.GetRequiredService<IAmazonS3>(),
+        imageStorageBucketName));
 
 var authenticationPermitLimit =
     builder.Environment.IsEnvironment("Testing")

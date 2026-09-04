@@ -1,9 +1,13 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using SharedThings.Api.Authorization;
 using SharedThings.Api.Contracts;
 using SharedThings.Api.Data;
+using SharedThings.Api.Interfaces;
+using SharedThings.Api.Validators;
 
 namespace SharedThings.Api.Endpoints;
 
@@ -22,6 +26,12 @@ public static class ItemEndpoints
         group.MapGet("/{itemId:guid}", GetItem);
         group.MapPut("/{itemId:guid}", UpdateItem);
         group.MapDelete("/{itemId:guid}", DeleteItem);
+        group.MapPut(
+            "/{itemId:guid}/image",
+            UploadItemImage).DisableAntiforgery();
+        group.MapDelete(
+            "/{itemId:guid}/image",
+            DeleteItemImage);
         
         return endpoints;
     }
@@ -31,6 +41,7 @@ public static class ItemEndpoints
         ClaimsPrincipal principal,
         IAuthorizationService authorizationService,
         SharedThingsDbContext dbContext,
+        IOptions<ItemImageOptions> imageOptions,
         CancellationToken cancellationToken)
     {
         var authorizationResult =
@@ -44,6 +55,9 @@ public static class ItemEndpoints
             return Results.NotFound();
         }
 
+        var baseUrl =
+            imageOptions.Value.PublicBaseUrl.TrimEnd('/');
+        
         var items = await dbContext.Items
             .AsNoTracking()
             .Where(item =>
@@ -56,7 +70,8 @@ public static class ItemEndpoints
                 item.Owner.DisplayName,
                 item.Name,
                 item.Description,
-                item.Condition))
+                item.Condition,
+                item.Images.Any() ? $"{baseUrl}/{item.Images.FirstOrDefault()!.StorageKey}" : null))
             .ToArrayAsync(cancellationToken);
 
         return Results.Ok(items);
@@ -65,12 +80,16 @@ public static class ItemEndpoints
     public static async Task<IResult> GetMyItems(
         ClaimsPrincipal principal,
         SharedThingsDbContext dbContext,
+        IOptions<ItemImageOptions> imageOptions,
         CancellationToken cancellationToken)
     {
         var userId = Guid.Parse(
             principal.FindFirstValue(
                 ClaimTypes.NameIdentifier)!);
 
+        var baseUrl =
+            imageOptions.Value.PublicBaseUrl.TrimEnd('/');
+        
         var items = await dbContext.Items
             .AsNoTracking()
             .Where(item => item.OwnerId == userId)
@@ -80,7 +99,8 @@ public static class ItemEndpoints
                 item.Owner.DisplayName,
                 item.Name,
                 item.Description,
-                item.Condition))
+                item.Condition,
+                item.Images.Any() ? $"{baseUrl}/{item.Images.FirstOrDefault()!.StorageKey}" : null))
             .ToArrayAsync(cancellationToken);
 
         return Results.Ok(items);
@@ -90,6 +110,7 @@ public static class ItemEndpoints
         CreateItemRequest request,
         ClaimsPrincipal principal,
         SharedThingsDbContext dbContext,
+        IOptions<ItemImageOptions> imageOptions,
         CancellationToken cancellationToken)
     {
         
@@ -145,6 +166,9 @@ public static class ItemEndpoints
         var userId = Guid.Parse(
             principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+        var baseUrl =
+            imageOptions.Value.PublicBaseUrl.TrimEnd('/');
+        
         var ownerDisplayName = await dbContext.Users
             .AsNoTracking()
             .Where(user => user.Id == userId)
@@ -175,18 +199,23 @@ public static class ItemEndpoints
                 ownerDisplayName,
                 item.Name,
                 item.Description,
-                item.Condition));
+                item.Condition,
+                item.Images.Any() ? $"{baseUrl}/{item.Images.FirstOrDefault()!.StorageKey}" : null));
     }
     
     public static async Task<IResult> GetItem(
         Guid itemId,
         ClaimsPrincipal principal,
         SharedThingsDbContext db,
+        IOptions<ItemImageOptions> imageOptions,
         CancellationToken cancellationToken)
     {
         var userId = Guid.Parse(
             principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+        var baseUrl =
+            imageOptions.Value.PublicBaseUrl.TrimEnd('/');
+        
         var myCommunityIds = db.Memberships
             .Where(membership => membership.UserId == userId)
             .Select(membership => membership.CommunityId);
@@ -206,7 +235,9 @@ public static class ItemEndpoints
                 i.Description,
                 i.Condition,
                 new ItemOwnerResponse(i.OwnerId, i.Owner.DisplayName),
-                i.OwnerId == userId))
+                
+                i.OwnerId == userId,
+                i.Images.Any() ? $"{baseUrl}/{i.Images.FirstOrDefault()!.StorageKey}" : null))
             .SingleOrDefaultAsync(cancellationToken);
 
         return item is null
@@ -219,10 +250,14 @@ public static class ItemEndpoints
     UpdateItemRequest request,
     ClaimsPrincipal principal,
     SharedThingsDbContext db,
+    IOptions<ItemImageOptions> imageOptions,
     CancellationToken cancellationToken)
 {
     var userId = Guid.Parse(
         principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    
+    var baseUrl =
+        imageOptions.Value.PublicBaseUrl.TrimEnd('/');
 
     if (string.IsNullOrWhiteSpace(request.Name))
     {
@@ -268,6 +303,7 @@ public static class ItemEndpoints
     }
 
     var item = await db.Items
+        .Include(i => i.Images)
         .Include(i => i.Owner)
         .SingleOrDefaultAsync(
             i => i.Id == itemId && i.OwnerId == userId,
@@ -293,7 +329,8 @@ public static class ItemEndpoints
             new ItemOwnerResponse(
                 item.OwnerId,
                 item.Owner.DisplayName),
-            CanEdit: true));
+            CanEdit: true,
+            item.Images.Any() ? $"{baseUrl}/{item.Images.FirstOrDefault()!.StorageKey}" : null));
 }
     
     private static async Task<IResult> DeleteItem(
@@ -321,4 +358,135 @@ public static class ItemEndpoints
 
     return Results.NoContent();
 }
+    
+    private static async Task<IResult> UploadItemImage(
+        Guid itemId,
+        IFormFile image,
+        ClaimsPrincipal principal,
+        SharedThingsDbContext db,
+        [FromServices] IItemImageStorage storage,
+        CancellationToken cancellationToken)
+    {
+        var userId = Guid.Parse(
+            principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        
+        var item = await db.Items
+            .Include(i => i.Images)
+            .SingleOrDefaultAsync(
+            item =>
+                item.Id == itemId &&
+                item.OwnerId == userId,
+            cancellationToken);
+        
+        if (item is null)
+        {
+            return Results.NotFound();
+        }
+
+        var existingImage = item.Images
+            .SingleOrDefault(i => i.SortOrder == 0);
+        
+        var validation =
+            await ItemImageValidator.ValidateAsync(
+                image,
+                cancellationToken);
+
+        if (!validation.IsValid)
+        {
+            return Results.ValidationProblem(
+                new Dictionary<string, string[]>
+                {
+                    ["image"] =
+                    [
+                        validation.Error!,
+                    ],
+                });
+        }
+
+        var validated = validation.Image!;
+        
+        var newStorageKey =
+            $"items/{itemId}/{Guid.NewGuid():N}.{validated.FileExtension}";
+        
+        await using var stream = image.OpenReadStream();
+
+        await storage.UploadAsync(
+            newStorageKey,
+            stream,
+            validated.ContentType,
+            cancellationToken);
+
+        var oldStorageKey = existingImage?.StorageKey;
+        if (existingImage is null)
+        {
+            db.ItemImages.Add(new ItemImage
+            {
+                Id = Guid.NewGuid(),
+                ItemId = itemId,
+                StorageKey = newStorageKey,
+                ContentType = validated.ContentType,
+                SortOrder = 0,
+                UploadedAt = DateTimeOffset.UtcNow,
+            });
+        }
+        else
+        {
+
+            existingImage.StorageKey = newStorageKey;
+            existingImage.ContentType =
+                validated.ContentType;
+            existingImage.UploadedAt = DateTimeOffset.UtcNow;
+
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        
+        if (oldStorageKey is not null)
+        {
+            await storage.DeleteAsync(
+                oldStorageKey,
+                cancellationToken);
+        }
+        
+        return Results.NoContent();
+    }
+    
+        private static async Task<IResult> DeleteItemImage(
+        Guid itemId,
+        ClaimsPrincipal principal,
+        SharedThingsDbContext db,
+        [FromServices] IItemImageStorage storage,
+        CancellationToken cancellationToken)
+    {
+        var userId = Guid.Parse(
+            principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        
+        var item = await db.Items
+            .Include(i => i.Images)
+            .SingleOrDefaultAsync(
+            item =>
+                item.Id == itemId &&
+                item.OwnerId == userId,
+            cancellationToken);
+        
+        if (item is null)
+        {
+            return Results.NotFound();
+        }
+
+        var existingImage = item.Images
+            .SingleOrDefault(i => i.SortOrder == 0);
+
+        if (existingImage is null)
+        {
+            return Results.NoContent();
+        }
+        
+        db.ItemImages.Remove(existingImage);
+
+        await db.SaveChangesAsync(cancellationToken);
+        
+        await storage.DeleteAsync(existingImage.StorageKey, cancellationToken);
+        
+        return Results.NoContent();
+    }
 }

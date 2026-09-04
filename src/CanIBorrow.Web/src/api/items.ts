@@ -42,3 +42,19 @@ export function updateItem(
         },
     );
 }
+
+export function uploadItemImage(
+    itemId: string,
+    image: File,
+): Promise<void> {
+    const formData = new FormData();
+    formData.append("image", image);
+
+    return apiRequest<void>(
+        `/api/items/${itemId}/image`,
+        {
+            method: "PUT",
+            body: formData,
+        },
+    );
+}

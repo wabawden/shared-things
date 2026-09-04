@@ -27,7 +27,7 @@ export async function apiRequest<T>(
         ...options,
         credentials: "include",
         headers: {
-            ...(options.body
+            ...(options.body && !(options.body instanceof FormData)
                 ? { "Content-Type": "application/json" }
                 : {}),
             ...options.headers,

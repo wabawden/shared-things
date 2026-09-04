@@ -6,4 +6,5 @@ public sealed record ItemSummaryResponse(
     string OwnerDisplayName,
     string Name,
     string Description,
-    string Condition);
+    string Condition,
+    string? Url);

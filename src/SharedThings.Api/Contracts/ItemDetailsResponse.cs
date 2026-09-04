@@ -6,4 +6,5 @@ public sealed record ItemDetailsResponse(
     string Description,
     string Condition,
     ItemOwnerResponse Owner,
-    bool CanEdit);
+    bool CanEdit,
+    string? Url);

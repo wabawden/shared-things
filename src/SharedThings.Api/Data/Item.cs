@@ -33,4 +33,7 @@ public sealed class Item
     public string Condition { get;  set; } = string.Empty;
 
     public ApplicationUser Owner { get; private set; } = null!;
+    
+    public ICollection<ItemImage> Images { get; set; } =
+        new List<ItemImage>();
 }

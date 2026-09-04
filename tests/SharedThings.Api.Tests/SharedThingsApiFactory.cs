@@ -1,14 +1,16 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SharedThings.Api.Data;
 using Testcontainers.PostgreSql;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
 using Respawn;
 using Respawn.Graph;
+using SharedThings.Api.Interfaces;
 using Xunit;
 
 namespace SharedThings.Api.Tests;
@@ -18,6 +20,9 @@ public sealed class SharedThingsApiFactory :
     IAsyncLifetime
 {
     private Respawner _respawner = null!;
+    
+    public FakeItemImageStorage ImageStorage =
+        new();
     
     private readonly PostgreSqlContainer _postgres =
         new PostgreSqlBuilder("postgres:18-alpine")
@@ -38,16 +43,30 @@ public sealed class SharedThingsApiFactory :
                     new Dictionary<string, string?>
                     {
                         ["ConnectionStrings:SharedThings"] =
-                            _postgres.GetConnectionString()
+                            _postgres.GetConnectionString(),
+                        ["ItemImages:BucketName"] =
+                            "shared-things-tests",
+                        ["ItemImages:Region"] =
+                            "eu-west-2",
+                        ["ItemImages:PublicBaseUrl"] =
+                            "https://images.test"
                     });
             });
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IItemImageStorage>();
+
+            services.AddSingleton<IItemImageStorage>(
+                ImageStorage);
+        });
     }
 
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
 
-        using (var scope = Services.CreateScope())
+        await using (var scope =
+                     Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider
                 .GetRequiredService<SharedThingsDbContext>();
@@ -56,8 +75,9 @@ public sealed class SharedThingsApiFactory :
             await TestDataSeeder.SeedAsync(db);
         }
 
-        await using var connection = new NpgsqlConnection(
-            _postgres.GetConnectionString());
+        await using var connection =
+            new NpgsqlConnection(
+                _postgres.GetConnectionString());
 
         await connection.OpenAsync();
 
@@ -69,21 +89,29 @@ public sealed class SharedThingsApiFactory :
                 SchemasToInclude = ["public"],
                 TablesToIgnore =
                 [
-                    new Table("__EFMigrationsHistory")
-                ]
+                    new Table("__EFMigrationsHistory"),
+                ],
             });
     }
-    
+
     public async Task ResetDatabaseAsync()
     {
-        await using var connection = new NpgsqlConnection(
-            _postgres.GetConnectionString());
+        if (_respawner is null)
+        {
+            throw new InvalidOperationException(
+                "The test database has not been initialised.");
+        }
+
+        await using var connection =
+            new NpgsqlConnection(
+                _postgres.GetConnectionString());
 
         await connection.OpenAsync();
 
         await _respawner.ResetAsync(connection);
 
-        using var scope = Services.CreateScope();
+        await using var scope =
+            Services.CreateAsyncScope();
 
         var db = scope.ServiceProvider
             .GetRequiredService<SharedThingsDbContext>();

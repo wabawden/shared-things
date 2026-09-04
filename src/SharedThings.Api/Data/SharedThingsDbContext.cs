@@ -20,6 +20,8 @@ public sealed class SharedThingsDbContext(
     public DbSet<Membership> Memberships => Set<Membership>();
 
     public DbSet<Item> Items => Set<Item>();
+    public DbSet<ItemImage> ItemImages =>
+        Set<ItemImage>();
     
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -102,6 +104,34 @@ public sealed class SharedThingsDbContext(
                 .WithMany()
                 .HasForeignKey(i => i.CreatedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+        
+        builder.Entity<ItemImage>(entity =>
+        {
+            entity.HasKey(image => image.Id);
+
+            entity.Property(image => image.StorageKey)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            entity.Property(image => image.ContentType)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(image => image.SortOrder)
+                .IsRequired();
+
+            entity.HasIndex(image => new
+                {
+                    image.ItemId,
+                    image.SortOrder,
+                })
+                .IsUnique();
+
+            entity.HasOne(image => image.Item)
+                .WithMany(item => item.Images)
+                .HasForeignKey(image => image.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
