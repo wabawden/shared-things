@@ -12,6 +12,7 @@ export type ItemDetails = {
     condition: string;
     owner: ItemOwner;
     canEdit: boolean;
+    url?: string;
 };
 
 export type UpdateItemRequest = {
